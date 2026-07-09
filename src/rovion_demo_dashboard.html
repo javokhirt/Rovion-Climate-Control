@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rovion — Boshqaruv paneli</title>
+<style>
+  :root{
+    --navy:#060F26; --panel:#0B1936; --panel2:#0E2044; --line:#1B2F58;
+    --blue:#2E6BFF; --blue-soft:#7AA0FF; --ice:#C9D8F7; --mute:#6B7FA8;
+    --ok:#2BD98F; --warn:#FFB020; --bad:#FF4D5E; --bad-deep:#8f1622;
+    --mono:ui-monospace,'SF Mono','Cascadia Mono','Consolas',monospace;
+    --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--navy);color:var(--ice);font-family:var(--sans);overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(1200px 600px at 75% -10%, rgba(46,107,255,.10), transparent 60%);}
+  .wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:18px 22px 30px}
+
+  /* Header */
+  header{display:flex;align-items:center;gap:16px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:baseline;gap:10px}
+  .brand .r{font-weight:800;font-size:22px;letter-spacing:.14em;color:#fff}
+  .brand .r b{color:var(--blue)}
+  .brand .tag{font-size:10.5px;letter-spacing:.18em;color:var(--mute);text-transform:uppercase}
+  .site{margin-left:auto;text-align:right}
+  .site .name{font-size:14px;font-weight:600}
+  .site .sub{font-size:11px;color:var(--mute)}
+  .pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;
+    padding:6px 12px;font-size:11.5px;color:var(--ice);background:var(--panel)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 8px currentColor}
+  .pill.ok .dot{background:var(--ok)} .pill.sim .dot{background:var(--warn)} .pill.off .dot{background:var(--bad)}
+  .gear{cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ice);
+    border-radius:10px;padding:7px 12px;font-size:12px}
+  .gear:hover{border-color:var(--blue)}
+
+  /* Alert takeover band */
+  #alarm{display:none;margin:16px 0 0;border-radius:14px;overflow:hidden;
+    border:1px solid #ff4d5e66;background:linear-gradient(100deg,#3a0b13,#57101d 55%,#3a0b13);
+    animation:breathe 1.6s ease-in-out infinite}
+  #alarm.show{display:block}
+  @keyframes breathe{0%,100%{box-shadow:0 0 0 0 rgba(255,77,94,.35)}50%{box-shadow:0 0 42px 4px rgba(255,77,94,.28)}}
+  .al-in{display:flex;gap:20px;align-items:center;padding:16px 20px;flex-wrap:wrap}
+  .al-ic{width:46px;height:46px;border-radius:12px;background:var(--bad);display:flex;align-items:center;
+    justify-content:center;font-size:24px;flex:0 0 auto;animation:pulse 1s infinite}
+  @keyframes pulse{50%{transform:scale(1.12)}}
+  .al-tx .t1{font-size:17px;font-weight:800;color:#fff;letter-spacing:.02em}
+  .al-tx .t2{font-size:12.5px;color:#ffc9cf;margin-top:3px}
+  .chain{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .cstep{border:1px solid #ff4d5e55;border-radius:10px;padding:8px 12px;background:#00000030;min-width:128px}
+  .cstep .who{font-size:11px;color:#ffd7db}
+  .cstep .st{font-family:var(--mono);font-size:12.5px;font-weight:700;color:#fff;margin-top:2px}
+  .cstep.active{border-color:#fff;background:#ffffff14}
+  .cstep.active .st{color:#ffe2a6}
+  .ackbtn{border:0;border-radius:10px;background:#fff;color:#57101d;font-weight:800;padding:11px 18px;
+    font-size:13px;cursor:pointer}
+
+  /* Grid */
+  .grid{display:grid;grid-template-columns:1fr 340px;gap:16px;margin-top:16px}
+  @media(max-width:980px){.grid{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+    border-radius:14px;padding:16px 18px}
+  .card h3{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);font-weight:600}
+
+  /* Chart card */
+  .bigval{display:flex;align-items:baseline;gap:14px;margin:10px 0 4px}
+  .bigval .v{font-family:var(--mono);font-size:56px;font-weight:700;color:#fff;line-height:1}
+  .bigval .u{font-size:20px;color:var(--blue-soft)}
+  .bigval .trend{font-family:var(--mono);font-size:13px;color:var(--mute)}
+  canvas{width:100%;display:block}
+  .legend{display:flex;gap:18px;margin-top:8px;font-size:11px;color:var(--mute)}
+  .legend i{display:inline-block;width:14px;height:3px;border-radius:2px;background:var(--blue);vertical-align:middle;margin-right:6px}
+  .legend i.th{background:var(--bad)}
+
+  /* KPI tiles */
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tile{background:#0A1730;border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-height:86px}
+  .tile .k{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+  .tile .v{font-family:var(--mono);font-size:24px;font-weight:700;color:#fff;margin-top:6px}
+  .tile .s{font-size:10.5px;margin-top:4px;color:var(--mute)}
+  .tile.ok .s{color:var(--ok)} .tile.na .v{color:var(--mute)}
+  .tile.alert{border-color:#ff4d5e88}.tile.alert .v{color:var(--bad)}
+
+  .row2{display:flex;flex-direction:column;gap:16px}
+
+  /* Log */
+  .log{max-height:210px;overflow-y:auto;margin-top:10px;font-size:12px}
+  .log::-webkit-scrollbar{width:6px}.log::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .li{display:flex;gap:10px;padding:7px 2px;border-bottom:1px solid #14264c}
+  .li .tm{font-family:var(--mono);color:var(--mute);flex:0 0 58px}
+  .li.warn{color:var(--warn)} .li.bad{color:var(--bad)} .li.good{color:var(--ok)}
+
+  /* Drawer */
+  #drawer{position:fixed;top:0;right:-380px;width:360px;height:100%;background:#0A1730;border-left:1px solid var(--line);
+    z-index:50;transition:right .25s ease;padding:22px;overflow-y:auto}
+  #drawer.open{right:0}
+  #drawer h2{font-size:14px;margin-bottom:16px;color:#fff}
+  .fld{margin-bottom:14px}
+  .fld label{display:block;font-size:11px;color:var(--mute);margin-bottom:5px;letter-spacing:.06em}
+  .fld input{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:#fff;
+    padding:9px 11px;font-size:13px;font-family:var(--mono)}
+  .fld input:focus{outline:none;border-color:var(--blue)}
+  .btn{width:100%;border:1px solid var(--line);background:var(--panel2);color:var(--ice);border-radius:9px;
+    padding:10px;font-size:12.5px;cursor:pointer;margin-bottom:9px;text-align:left}
+  .btn:hover{border-color:var(--blue)} .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700;text-align:center}
+  .hr{border-top:1px solid var(--line);margin:16px 0}
+  .hint{font-size:10.5px;color:var(--mute);line-height:1.5;margin-top:4px}
+  .simbadge{position:fixed;left:18px;bottom:16px;z-index:40;background:#2a2008;border:1px solid #6b5716;
+    color:#ffd76a;font-size:11px;padding:7px 12px;border-radius:999px;letter-spacing:.08em;display:none}
+  .simbadge.show{display:block}
+  footer{margin-top:18px;font-size:10.5px;color:#3d4f78;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="r">R<b>O</b>VION</span><span class="tag">Boshqaruv paneli</span></div>
+    <div class="site">
+      <div class="name" id="siteName">Chinoz tumani — Issiqxona №1</div>
+      <div class="sub">Pomidor · 0,8 ga · Gaz + zaxira ko'mir qozoni</div>
+    </div>
+    <div class="pill sim" id="connPill"><span class="dot"></span><span id="connTxt">Simulyatsiya rejimi</span></div>
+    <button class="gear" id="gearBtn">⚙ Sozlamalar</button>
+  </header>
+
+  <!-- ALERT TAKEOVER -->
+  <div id="alarm">
+    <div class="al-in">
+      <div class="al-ic">⚠</div>
+      <div class="al-tx">
+        <div class="t1" id="alT1">HARORAT KRITIK DARAJAGA TUSHMOQDA</div>
+        <div class="t2" id="alT2">Egaga qo'ng'iroq qilinmoqda…</div>
+      </div>
+      <div class="chain">
+        <div class="cstep active" id="c1"><div class="who">1 — Egasi (Javohir)</div><div class="st" id="c1s">QO'NG'IROQ…</div></div>
+        <div class="cstep" id="c2"><div class="who">2 — Bosh agronom</div><div class="st" id="c2s">navbatda</div></div>
+        <div class="cstep" id="c3"><div class="who">3 — Qorovul</div><div class="st" id="c3s">navbatda</div></div>
+        <button class="ackbtn" id="ackBtn">Qabul qilindi ✓</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- LEFT: chart -->
+    <div class="card">
+      <h3>Ichki harorat — jonli</h3>
+      <div class="bigval">
+        <span class="v" id="tempV">--.-</span><span class="u">°C</span>
+        <span class="trend" id="trendV"></span>
+      </div>
+      <canvas id="chart" height="240"></canvas>
+      <div class="legend"><span><i></i>Harorat</span><span><i class="th"></i>Kritik chegara (<span id="thLegend">18.0</span>°C)</span></div>
+    </div>
+
+    <!-- RIGHT: tiles + log -->
+    <div class="row2">
+      <div class="card">
+        <h3>Holat</h3>
+        <div class="tiles" style="margin-top:10px">
+          <div class="tile" id="tHum"><div class="k">Namlik</div><div class="v" id="humV">--%</div><div class="s">me'yorda</div></div>
+          <div class="tile" id="tSig"><div class="k">Aloqa signali</div><div class="v" id="rssiV">—</div><div class="s" id="rssiS">kutilmoqda</div></div>
+          <div class="tile na" id="tGas"><div class="k">Gaz bosimi</div><div class="v">—</div><div class="s">demo rejimida ulanmagan</div></div>
+          <div class="tile na" id="tPow"><div class="k">Elektr ta'minoti</div><div class="v">—</div><div class="s">demo rejimida ulanmagan</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Hodisalar jurnali</h3>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Rovion Controls · demo · barcha boshqaruv mahalliy blokda ishlaydi — internetsiz ham</footer>
+</div>
+
+<div class="simbadge" id="simBadge">SIMULYATSIYA — haqiqiy sensor ulanmagan</div>
+
+<!-- SETTINGS DRAWER -->
+<div id="drawer">
+  <h2>Sozlamalar</h2>
+  <button class="btn primary" id="serialBtn">🔌 USB orqali ulanish (ESP32)</button>
+  <div class="fld">
+    <label>ESP32 IP manzili (WiFi rejimi)</label>
+    <input id="wsIp" placeholder="masalan: 192.168.43.117">
+  </div>
+  <button class="btn" id="wsBtn">📡 WiFi orqali ulanish</button>
+  <div class="hint">ESP32 va noutbuk bitta hotspotda bo'lishi kerak. IP manzil ESP32 Serial monitorida chiqadi.</div>
+  <div class="hr"></div>
+  <div class="fld">
+    <label>Kritik harorat chegarasi (°C)</label>
+    <input id="thIn" type="number" step="0.5" value="18">
+  </div>
+  <div class="hr"></div>
+  <div class="fld"><label>Telegram bot token</label><input id="tgToken" placeholder="123456:ABC-..."></div>
+  <div class="fld"><label>Telegram chat ID</label><input id="tgChat" placeholder="-100... yoki shaxsiy ID"></div>
+  <button class="btn" id="tgTest">✉ Telegram sinov xabari</button>
+  <div class="hint">Bot yaratish: Telegramda @BotFather → /newbot. Chat ID: @userinfobot.</div>
+  <div class="hr"></div>
+  <button class="btn" id="testAlarm">🔔 Signal mashqi (T tugmasi)</button>
+  <button class="btn" id="resetBtn">↺ Grafikni tozalash</button>
+  <div class="hint">Klaviatura: T — sinov signali · Esc — signalni qabul qilish</div>
+</div>
+
+<script>
+"use strict";
+/* ---------- safe storage (falls back to memory) ---------- */
+const mem={};
+const store={
+  get(k,d){try{const v=localStorage.getItem(k);return v===null?(k in mem?mem[k]:d):v}catch(e){return k in mem?mem[k]:d}},
+  set(k,v){try{localStorage.setItem(k,v)}catch(e){} mem[k]=v}
+};
+
+/* ---------- state ---------- */
+const S={
+  temp:null, hum:null, rssi:null, prev:null,
+  data:[], maxPts:150,
+  threshold:parseFloat(store.get('th','18')),
+  mode:'sim',           // sim | serial | ws
+  alarm:false, acked:false, chainTimer:null, chainStep:0,
+  audio:null, osc:null, simT:24.2, simDir:0
+};
+
+/* ---------- helpers ---------- */
+const $=id=>document.getElementById(id);
+const now=()=>new Date().toTimeString().slice(0,8);
+function log(msg,cls){
+  const d=document.createElement('div');d.className='li'+(cls?' '+cls:'');
+  d.innerHTML=`<span class="tm">${now()}</span><span>${msg}</span>`;
+  const L=$('log');L.prepend(d);while(L.children.length>60)L.lastChild.remove();
+}
+function setConn(mode,txt){
+  S.mode=mode;const p=$('connPill');
+  p.className='pill '+(mode==='sim'?'sim':'ok');
+  $('connTxt').textContent=txt;
+  $('simBadge').classList.toggle('show',mode==='sim');
+}
+
+/* ---------- chart (hand-rolled, zero deps) ---------- */
+const cv=$('chart'),cx=cv.getContext('2d');
+function drawChart(){
+  const W=cv.width=cv.clientWidth*devicePixelRatio, H=cv.height=240*devicePixelRatio;
+  cx.clearRect(0,0,W,H);
+  const pad=44*devicePixelRatio, pb=26*devicePixelRatio, pt=14*devicePixelRatio;
+  const pts=S.data; if(pts.length<2)return;
+  let lo=Math.min(...pts,S.threshold)-1.5, hi=Math.max(...pts,S.threshold)+1.5;
+  const X=i=>pad+(W-pad-10*devicePixelRatio)*(i/(S.maxPts-1));
+  const Y=v=>pt+(H-pt-pb)*(1-(v-lo)/(hi-lo));
+  /* grid + labels */
+  cx.font=`${11*devicePixelRatio}px ui-monospace,monospace`;cx.fillStyle='#5d6f96';cx.strokeStyle='#16294f';cx.lineWidth=1;
+  for(let g=0;g<5;g++){const v=lo+(hi-lo)*g/4,y=Y(v);
+    cx.beginPath();cx.moveTo(pad,y);cx.lineTo(W-10*devicePixelRatio,y);cx.stroke();
+    cx.fillText(v.toFixed(1),6*devicePixelRatio,y+4*devicePixelRatio);}
+  /* threshold */
+  cx.strokeStyle='#FF4D5E';cx.setLineDash([6*devicePixelRatio,5*devicePixelRatio]);cx.lineWidth=1.6*devicePixelRatio;
+  cx.beginPath();cx.moveTo(pad,Y(S.threshold));cx.lineTo(W-10*devicePixelRatio,Y(S.threshold));cx.stroke();cx.setLineDash([]);
+  /* area fill */
+  const start=S.maxPts-pts.length;
+  cx.beginPath();cx.moveTo(X(start),Y(pts[0]));
+  pts.forEach((v,i)=>cx.lineTo(X(start+i),Y(v)));
+  cx.lineTo(X(S.maxPts-1),H-pb);cx.lineTo(X(start),H-pb);cx.closePath();
+  const gr=cx.createLinearGradient(0,pt,0,H-pb);
+  gr.addColorStop(0,'rgba(46,107,255,.30)');gr.addColorStop(1,'rgba(46,107,255,0)');
+  cx.fillStyle=gr;cx.fill();
+  /* line */
+  cx.beginPath();cx.moveTo(X(start),Y(pts[0]));
+  pts.forEach((v,i)=>cx.lineTo(X(start+i),Y(v)));
+  cx.strokeStyle='#2E6BFF';cx.lineWidth=2.4*devicePixelRatio;cx.lineJoin='round';cx.stroke();
+  /* head dot */
+  const hx=X(start+pts.length-1),hy=Y(pts[pts.length-1]);
+  cx.beginPath();cx.arc(hx,hy,4.5*devicePixelRatio,0,7);cx.fillStyle='#fff';cx.fill();
+  cx.beginPath();cx.arc(hx,hy,9*devicePixelRatio,0,7);cx.strokeStyle='rgba(255,255,255,.35)';cx.lineWidth=devicePixelRatio;cx.stroke();
+}
+
+/* ---------- data intake ---------- */
+function feed(t,h,rssi){
+  S.prev=S.temp; S.temp=t; if(h!=null)S.hum=h; if(rssi!=null)S.rssi=rssi;
+  S.data.push(t); if(S.data.length>S.maxPts)S.data.shift();
+  $('tempV').textContent=t.toFixed(1);
+  const d=S.prev==null?0:t-S.prev;
+  $('trendV').textContent=(d>0.05?'▲':d<-0.05?'▼':'—')+' '+Math.abs(d).toFixed(1)+'°/o\u2018lchov';
+  $('trendV').style.color=d<-0.05?'#FF8A94':'#6B7FA8';
+  if(S.hum!=null)$('humV').textContent=Math.round(S.hum)+'%';
+  if(S.rssi!=null){$('rssiV').textContent=S.rssi+' dBm';$('rssiS').textContent=S.rssi>-70?'aloqa barqaror':'aloqa kuchsiz';}
+  drawChart();
+  checkAlarm();
+}
+function checkAlarm(){
+  const tile=$('tHum');
+  if(S.temp<=S.threshold && !S.alarm){startAlarm();}
+  if(S.temp>S.threshold+1 && S.alarm){stopAlarm('Harorat me\u2019yorga qaytdi — signal yakunlandi');}
+}
+
+/* ---------- alarm / escalation ---------- */
+function siren(on){
+  try{
+    if(on){
+      if(!S.audio)S.audio=new (window.AudioContext||window.webkitAudioContext)();
+      const a=S.audio;S.osc=a.createOscillator();const g=a.createGain();
+      S.osc.type='square';S.osc.connect(g);g.connect(a.destination);g.gain.value=.12;
+      let up=true;S.osc.frequency.value=740;
+      S.sirenInt=setInterval(()=>{S.osc.frequency.value=up?980:740;up=!up},350);
+      S.osc.start();
+    }else{
+      if(S.sirenInt)clearInterval(S.sirenInt);
+      if(S.osc){try{S.osc.stop()}catch(e){}S.osc=null;}
+    }
+  }catch(e){}
+}
+function tgSend(text){
+  const tok=$('tgToken').value.trim(),chat=$('tgChat').value.trim();
+  if(!tok||!chat)return log('Telegram sozlanmagan — xabar yuborilmadi','warn');
+  fetch(`https://api.telegram.org/bot${tok}/sendMessage`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chat_id:chat,text})
+  }).then(r=>r.ok?log('Telegram xabari yuborildi ✓','good'):log('Telegram xatosi: '+r.status,'bad'))
+    .catch(()=>log('Telegram: internet yo\u2018q','bad'));
+}
+function startAlarm(){
+  S.alarm=true;S.acked=false;S.chainStep=0;
+  $('alarm').classList.add('show');
+  $('alT1').textContent='HARORAT KRITIK DARAJAGA TUSHMOQDA';
+  $('alT2').textContent=`Hozir ${S.temp.toFixed(1)}°C · chegara ${S.threshold.toFixed(1)}°C · Egaga qo\u2018ng\u2018iroq qilinmoqda…`;
+  setChain(0);
+  siren(true);
+  log(`⚠ SIGNAL: harorat ${S.temp.toFixed(1)}°C — kritik chegaradan pastda`,'bad');
+  tgSend(`🚨 ROVION SIGNAL\nChinoz — Issiqxona №1\nHarorat: ${S.temp.toFixed(1)}°C (chegara ${S.threshold}°C)\nHarorat pasaymoqda — zudlik bilan tekshiring!\nEgaga qo'ng'iroq qilinmoqda…`);
+  /* escalation every 20s in demo (5 min in production) */
+  S.chainTimer=setInterval(()=>{
+    if(S.chainStep<2){S.chainStep++;setChain(S.chainStep);
+      log(`Javob yo\u2018q — ${S.chainStep+1}-kontaktga qo\u2018ng\u2018iroq qilinmoqda`,'warn');}
+  },20000);
+}
+function setChain(n){
+  [0,1,2].forEach(i=>{
+    const c=$('c'+(i+1)),s=$('c'+(i+1)+'s');
+    c.classList.toggle('active',i===n);
+    s.textContent=i<n?'javob yo\u2018q':i===n?"QO'NG'IROQ…":'navbatda';
+  });
+}
+function stopAlarm(msg){
+  S.alarm=false;clearInterval(S.chainTimer);siren(false);
+  $('alarm').classList.remove('show');
+  log(msg||'Signal qabul qilindi','good');
+}
+$('ackBtn').onclick=()=>{stopAlarm('Signal qabul qilindi — egasi javob berdi ✓');tgSend('✓ Signal qabul qilindi — nazorat davom etmoqda.');};
+
+/* ---------- SIMULATION (until real sensor connects) ---------- */
+let simInt=setInterval(()=>{
+  if(S.mode!=='sim')return;
+  S.simT+= (Math.random()-.5)*.18 + S.simDir;
+  if(S.simT>26)S.simT=26;
+  feed(+S.simT.toFixed(2), 42+Math.random()*4, -48-Math.round(Math.random()*6));
+},1000);
+
+/* ---------- WEB SERIAL (USB fallback — bulletproof) ---------- */
+$('serialBtn').onclick=async()=>{
+  if(!('serial' in navigator))return log('Web Serial faqat Chrome/Edge da ishlaydi','bad');
+  try{
+    const port=await navigator.serial.requestPort();
+    await port.open({baudRate:115200});
+    setConn('serial','USB ulandi');log('ESP32 USB orqali ulandi ✓','good');
+    const dec=new TextDecoderStream();port.readable.pipeTo(dec.writable);
+    const rd=dec.readable.getReader();let buf='';
+    while(true){const{value,done}=await rd.read();if(done)break;buf+=value;
+      let i;while((i=buf.indexOf('\n'))>=0){const line=buf.slice(0,i).trim();buf=buf.slice(i+1);
+        if(line.startsWith('{')){try{const j=JSON.parse(line);if(j.t!=null)feed(j.t,j.h,j.rssi);}catch(e){}}}}
+  }catch(e){log('USB ulanish bekor qilindi','warn')}
+};
+
+/* ---------- WEBSOCKET (WiFi mode) ---------- */
+$('wsBtn').onclick=()=>{
+  const ip=$('wsIp').value.trim();if(!ip)return log('IP manzilni kiriting','warn');
+  store.set('ip',ip);
+  const ws=new WebSocket(`ws://${ip}:81`);
+  ws.onopen=()=>{setConn('ws','WiFi ulandi');log('ESP32 WiFi orqali ulandi ✓ ('+ip+')','good');};
+  ws.onmessage=e=>{try{const j=JSON.parse(e.data);if(j.t!=null)feed(j.t,j.h,j.rssi);}catch(err){}};
+  ws.onclose=()=>{if(S.mode==='ws'){setConn('sim','Simulyatsiya rejimi');log('WiFi aloqa uzildi — simulyatsiyaga qaytildi','warn');}};
+  ws.onerror=()=>log('WiFi ulanib bo\u2018lmadi — IP va hotspotni tekshiring','bad');
+};
+
+/* ---------- settings ---------- */
+$('gearBtn').onclick=()=>$('drawer').classList.toggle('open');
+document.addEventListener('click',e=>{
+  if(!$('drawer').contains(e.target)&&e.target.id!=='gearBtn')$('drawer').classList.remove('open');
+});
+$('thIn').value=S.threshold;
+$('thIn').onchange=()=>{S.threshold=parseFloat($('thIn').value)||18;store.set('th',S.threshold);
+  $('thLegend').textContent=S.threshold.toFixed(1);drawChart();
+  log('Kritik chegara: '+S.threshold+'°C','warn');};
+$('thLegend').textContent=S.threshold.toFixed(1);
+$('tgToken').value=store.get('tgt','');$('tgChat').value=store.get('tgc','');
+$('tgToken').onchange=()=>store.set('tgt',$('tgToken').value);
+$('tgChat').onchange=()=>store.set('tgc',$('tgChat').value);
+$('wsIp').value=store.get('ip','');
+$('tgTest').onclick=()=>tgSend('✓ Rovion sinov xabari — aloqa ishlayapti.');
+$('resetBtn').onclick=()=>{S.data=[];drawChart();log('Grafik tozalandi');};
+
+/* test alarm: simulate temperature dive */
+function testDive(){
+  if(S.mode!=='sim'){log('Sinov faqat simulyatsiya rejimida','warn');return;}
+  log('Signal mashqi boshlandi — harorat pasaytirilmoqda','warn');
+  S.simDir=-.9;setTimeout(()=>{S.simDir=0;setTimeout(()=>{S.simT=24;},8000);},7000);
+}
+$('testAlarm').onclick=testDive;
+document.addEventListener('keydown',e=>{
+  if(e.key==='t'||e.key==='T')testDive();
+  if(e.key==='Escape'&&S.alarm)$('ackBtn').click();
+});
+
+window.addEventListener('resize',drawChart);
+log('Rovion paneli ishga tushdi','good');
+log('Sensor kutilmoqda — hozircha simulyatsiya rejimi','warn');
+</script>
+</body>
+</html>

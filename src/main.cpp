@@ -28,8 +28,8 @@
 #include <DHT.h>
 
 // ======= EDIT THESE TWO LINES =======
-const char* WIFI_SSID = "Javohir-iPhone";     // your phone hotspot name
-const char* WIFI_PASS = "rovion2026";         // hotspot password
+const char* WIFI_SSID = "Meniki PC";     // your phone hotspot name
+const char* WIFI_PASS = "12344321";         // hotspot password
 // ====================================
 
 #define DHTPIN  4
